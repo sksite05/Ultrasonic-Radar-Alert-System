@@ -1,0 +1,120 @@
+#include <Servo.h>
+
+const int trigPin = 6;
+const int echoPin = 5;
+Servo myServo; // Servo for rotating the ultrasonic sensor
+Servo gateServo; // Servo for controlling the semicircular gate
+
+const int buzzerPin = 4;
+const int greenLEDPin = 2;
+const int redLEDPin = 7;
+
+const int distanceThreshold = 10; 
+int value;
+int gatePosition = 0; // Current position of the gate
+
+void setup() {
+  Serial.begin(9600);
+  myServo.attach(3); // Attach the first servo
+  gateServo.attach(8); // Attach the second servo for the gate
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(greenLEDPin, OUTPUT);
+  pinMode(redLEDPin, OUTPUT);
+
+  digitalWrite(buzzerPin, LOW);
+  digitalWrite(greenLEDPin, LOW);
+  digitalWrite(redLEDPin, LOW);
+
+  // Initially, the gate is open (0 degrees)
+  gateServo.write(0);
+}
+
+void loop() {
+  for (int angle = 0; angle <= 180; angle += 2) {
+    myServo.write(angle);
+    value = angle;
+    delay(50);
+    int distance = getDistance();
+
+    if (distance > 0 && distance <= distanceThreshold) {
+      // Alert if object is within range
+      digitalWrite(buzzerPin, HIGH); 
+      digitalWrite(redLEDPin, HIGH); 
+      digitalWrite(greenLEDPin, LOW); 
+      
+      // Close the gate to 90 degrees with controlled speed
+      moveGateServoTo(90, 10); // Speed control: smaller delay = faster
+    } else {
+      digitalWrite(buzzerPin, LOW); 
+      digitalWrite(redLEDPin, LOW); 
+      digitalWrite(greenLEDPin, HIGH); 
+
+      // Open the gate to 0 degrees with controlled speed
+      moveGateServoTo(0, 10); // Speed control: smaller delay = faster
+    }
+    delay(200);
+  }
+
+  for (int angle = 180; angle >= 0; angle -= 2) {
+    myServo.write(angle);
+    value = angle;
+    delay(50);
+    int distance = getDistance();
+
+    if (distance > 0 && distance <= distanceThreshold) {
+      // Alert if object is within range
+      digitalWrite(buzzerPin, HIGH); 
+      digitalWrite(redLEDPin, HIGH); 
+      digitalWrite(greenLEDPin, LOW); 
+      
+      // Close the gate to 90 degrees with controlled speed
+      moveGateServoTo(90, 10); // Speed control: smaller delay = faster
+    } else {
+      digitalWrite(buzzerPin, LOW); 
+      digitalWrite(redLEDPin, LOW); 
+      digitalWrite(greenLEDPin, HIGH); 
+
+      // Open the gate to 0 degrees with controlled speed
+      moveGateServoTo(0, 10); // Speed control: smaller delay = faster
+    }
+    delay(200);
+  }
+}
+
+void moveGateServoTo(int targetAngle, int delayTime) {
+  // Gradually move the gateServo to target angle
+  if (gatePosition < targetAngle) {
+    for (int pos = gatePosition; pos <= targetAngle; pos++) {
+      gateServo.write(pos);
+      delay(delayTime);
+    }
+  } else {
+    for (int pos = gatePosition; pos >= targetAngle; pos--) {
+      gateServo.write(pos);
+      delay(delayTime);
+    }
+  }
+  gatePosition = targetAngle; // Update the current position
+}
+
+int getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH);
+  int distance = duration * 0.034 / 2; // Convert to cm
+
+  Serial.print(value);
+  Serial.print(",");
+  Serial.print(distance);
+  Serial.print(".");
+  
+  return distance;
+}
