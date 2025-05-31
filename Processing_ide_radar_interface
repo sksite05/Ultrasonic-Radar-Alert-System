@@ -1,0 +1,134 @@
+import processing.serial.*;
+import java.util.ArrayList;
+
+Serial myPort; // Defines variables
+String distance = "";
+String data = "";
+String angle = "";
+int iAngle, iDistance;
+float pixsDistance;
+
+// Stores object positions and their corresponding colors
+ArrayList<PVector> objectPositions = new ArrayList<>();
+ArrayList<Integer> objectColors = new ArrayList<>();
+
+void setup() {
+  size(1280, 720); // Set canvas size
+  smooth();
+  myPort = new Serial(this, "COM6", 9600); // Change the port as per your system
+  myPort.bufferUntil('.'); // Reads serial data up to '.'
+}
+
+void draw() {
+  background(0); // Black background
+  fill(98, 245, 31); // Green color for radar
+  noStroke();
+
+  // Simulate fading motion blur
+  fill(0, 20);
+  rect(0, 0, width, height);
+
+  // Draw radar and detected objects
+  drawRadar();
+  drawObject();
+  drawLine();
+  drawText();
+}
+
+void serialEvent(Serial myPort) {
+  data = myPort.readStringUntil('.');
+  data = data.substring(0, data.length() - 1); // Remove the '.' character
+  int index1 = data.indexOf(','); // Split data into angle and distance
+  angle = data.substring(0, index1);
+  distance = data.substring(index1 + 1);
+
+  iAngle = int(angle); // Convert angle to integer
+  iDistance = int(distance); // Convert distance to integer
+}
+
+void drawRadar() {
+  pushMatrix();
+  translate(width / 2, height - height * 0.074); // Center radar
+  noFill();
+  strokeWeight(2);
+  stroke(98, 245, 31); // Green color for arcs
+
+  // Draw radar arcs
+  for (int i = 1; i <= 4; i++) {
+    arc(0, 0, width - (width * i * 0.125), width - (width * i * 0.125), PI, TWO_PI);
+  }
+
+  // Draw angle lines
+  for (int i = 0; i <= 180; i += 30) {
+    line(0, 0, -width / 2 * cos(radians(i)), -width / 2 * sin(radians(i)));
+  }
+  popMatrix();
+}
+
+void drawObject() {
+  pushMatrix();
+  translate(width / 2, height - height * 0.074); // Center radar
+
+  if (iDistance > 0 && iDistance < 40) {
+    pixsDistance = iDistance * ((height - height * 0.1666) * 0.025); // Distance in pixels
+
+    // Determine color based on distance
+    int color;
+    if (iDistance <= 10) {
+      color = color(255, 0, 0); // Intense red
+    } else if (iDistance <= 20) {
+      color = color(200, 255, 0); // Yellow-green with more red
+    } else {
+      color = color(150, 255, 0); // Light green with red
+    }
+
+    // Add position and color to arrays
+    float x = pixsDistance * cos(radians(iAngle));
+    float y = -pixsDistance * sin(radians(iAngle));
+    objectPositions.add(new PVector(x, y));
+    objectColors.add(color);
+  }
+
+  // Draw fading trail of dots
+  for (int i = 0; i < objectPositions.size(); i++) {
+    fill(objectColors.get(i), 255 - (i * 10)); // Reduce opacity for fading trail
+    noStroke();
+    ellipse(objectPositions.get(i).x, objectPositions.get(i).y, 20, 20); // Larger dots
+  }
+
+  // Limit trail length to avoid excessive memory usage
+  if (objectPositions.size() > 20) {
+    objectPositions.remove(0);
+    objectColors.remove(0);
+  }
+
+  popMatrix();
+}
+
+void drawLine() {
+  pushMatrix();
+  strokeWeight(2);
+  stroke(30, 250, 60); // Bright green
+  translate(width / 2, height - height * 0.074);
+  line(0, 0, (height - height * 0.12) * cos(radians(iAngle)), -(height - height * 0.12) * sin(radians(iAngle)));
+  popMatrix();
+}
+
+void drawText() {
+  pushMatrix();
+
+  String noObject = (iDistance > 40) ? "Out of Range" : "In Range";
+
+  // Background for text
+  fill(0);
+  noStroke();
+  rect(0, height - height * 0.0648, width, height);
+
+  // Display information
+  fill(98, 245, 31);
+  textSize(40);
+  text("Distance: " + ((iDistance <= 40) ? iDistance + " cm" : noObject), width * 0.05, height - height * 0.02);
+  text("Angle: " + iAngle + "°", width * 0.5, height - height * 0.02);
+
+  popMatrix();
+}
